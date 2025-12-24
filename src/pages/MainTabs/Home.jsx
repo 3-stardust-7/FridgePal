@@ -172,7 +172,7 @@ const Home = () => {
     },
     {
       id: 4,
-      name: 'Chicken Breast',
+      name: 'Chicken',
       quantity: '500 g',
       image:
         'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=100&h=100&fit=crop',
