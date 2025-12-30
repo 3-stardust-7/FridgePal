@@ -1,328 +1,454 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
+  TextInput,
   StyleSheet,
+  FlatList,
+  Alert,
 } from 'react-native';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  runOnJS,
-} from 'react-native-reanimated';
-
-
-const DraggableProgressBar = ({ progress, onProgressChange, color, label }) => {
-  const translateX = useSharedValue(0);
-  const startX = useSharedValue(0);
-  const barWidth = useSharedValue(0);
-
-  useEffect(() => {
-    if (barWidth.value > 0) {
-      translateX.value = progress * barWidth.value;
-    }
-  }, [progress]);
-
-  const gesture = Gesture.Pan()
-    .onStart(() => {
-      startX.value = translateX.value;
-    })
-    .onUpdate((event) => {
-      const newX = startX.value + event.translationX;
-      translateX.value = Math.max(
-        0,
-        Math.min(newX, barWidth.value)
-      );
-    })
-    .onEnd(() => {
-      // const newProgress =
-      //   barWidth.value === 0 ? 0 : translateX.value / barWidth.value;
-      // runOnJS(onProgressChange)(newProgress);
-      const newProgress =
-        barWidth.value > 0
-          ? Math.min(1, Math.max(0, translateX.value / barWidth.value))
-          : 0;
-
-runOnJS(onProgressChange)(newProgress);
-
-    });
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: translateX.value,
-  }));
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  return (
-    <View style={styles.progressContainer}>
-      <Text style={styles.progressLabel}>{label}</Text>
-
-      <View style={styles.progressBarWrapper}>
-        <View
-          style={styles.progressBarBg}
-          onLayout={(e) => {
-            barWidth.value = e.nativeEvent.layout.width;
-            translateX.value = progress * barWidth.value;
-          }}
-        >
-          <Animated.View
-            style={[
-              styles.progressBarFill,
-              { backgroundColor: color },
-              fillStyle,
-            ]}
-          />
-        </View>
-
-        <GestureDetector gesture={gesture}>
-          <Animated.View style={[styles.progressThumb, thumbStyle]}>
-            <View style={[styles.thumbCircle, { backgroundColor: color }]} />
-          </Animated.View>
-        </GestureDetector>
-      </View>
-
-      <Text style={styles.progressText}>
-        {/* {Math.round(progress * 100)}% */}
-        {Number.isFinite(progress)
-          ? Math.round(progress * 100)
-          : 0}%
-      </Text>
-    </View>
-  );
-};
-
-
-
-const FridgeItemCard = ({ item }) => {
-  const [amountProgress, setAmountProgress] = useState(item.amountLeft);
-  const [expiryProgress, setExpiryProgress] = useState(item.expiryProgress);
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Image source={{ uri: item.image }} style={styles.itemImage} />
-        <View style={styles.itemInfo}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemQuantity}>{item.quantity}</Text>
-        </View>
-      </View>
-
-      <View style={styles.progressBarsContainer}>
-        <DraggableProgressBar
-          progress={amountProgress}
-          onProgressChange={setAmountProgress}
-          color="#4CAF50"
-          label="Amount Left"
-        />
-
-        <DraggableProgressBar
-          progress={expiryProgress}
-          onProgressChange={setExpiryProgress}
-          color="#FF9800"
-          label="Freshness"
-        />
-      </View>
-    </View>
-  );
-};
-
+import { useSelector, useDispatch } from 'react-redux';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { COLORS, CATEGORIES } from '../../utils/constants';
+import { getGreeting, getDaysUntilExpiry } from '../../utils/helpers';
+import FridgeItemCard from '../../components/FridgeItemCard';
+import AddItemModal from '../../components/AddItemModal';
+import {
+  selectFilteredItems,
+  selectExpiringItems,
+  selectSelectedCategory,
+  setSelectedCategory,
+  addItem,
+  removeItem,
+  updateAmountLeft,
+  consumeItem,
+} from '../../../store/slices/fridgeSlice';
+import { selectProfile } from '../../../store/slices/userSlice';
 
 const Home = () => {
-  const fridgeItems = [
-    {
-      id: 1,
-      name: 'Potatoes',
-      quantity: '1.5 kg',
-      image:
-        'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=100&h=100&fit=crop',
-      amountLeft: 0.6,
-      expiryProgress: 0.8,
-    },
-    {
-      id: 5,
-      name: 'Eggs',
-      quantity: '12 pieces',
-      image:
-        'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=100&h=100&fit=crop',
-      amountLeft: 0.5,
-      expiryProgress: 0.7,
-    },
-    {
-      id: 3,
-      name: 'Milk',
-      quantity: '2 L',
-      image:
-        'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=100&h=100&fit=crop',
-      amountLeft: 0.75,
-      expiryProgress: 0.3,
-    },
-    {
-      id: 8,
-      name: 'Spinach',
-      quantity: '300 g',
-      image:
-        'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=100&h=100&fit=crop',
-      amountLeft: 0.3,
-      expiryProgress: 0.2,
-    },
-    {
-      id: 4,
-      name: 'Chicken',
-      quantity: '500 g',
-      image:
-        'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=100&h=100&fit=crop',
-      amountLeft: 0.9, 
-      expiryProgress: 0.6,
-    },
-  ];
-
+  const dispatch = useDispatch();
+  const items = useSelector(selectFilteredItems);
+  const expiringItems = useSelector(selectExpiringItems);
+  const selectedCategory = useSelector(selectSelectedCategory);
+  const profile = useSelector(selectProfile);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return items;
+    const query = searchQuery.toLowerCase();
+    return items.filter(item =>
+      item.name.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query)
+    );
+  }, [items, searchQuery]);
+  
+  const stats = useMemo(() => ({
+    total: items.length,
+    expiringSoon: expiringItems.length,
+    lowStock: items.filter(i => i.amountLeft < 0.3).length,
+  }), [items, expiringItems]);
+  
+  const handleAddItem = (newItem) => {
+    dispatch(addItem(newItem));
+  };
+  
+  const handleRemoveItem = (id) => {
+    Alert.alert(
+      'Remove Item',
+      'Are you sure you want to remove this item?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Remove', 
+          style: 'destructive',
+          onPress: () => dispatch(removeItem(id))
+        },
+      ]
+    );
+  };
+  
+  const handleUpdateAmount = (id, change) => {
+    const item = items.find(i => i.id === id);
+    if (item) {
+      const newAmount = Math.max(0, Math.min(1, item.amountLeft + change));
+      if (newAmount === 0) {
+        handleRemoveItem(id);
+      } else {
+        dispatch(updateAmountLeft({ id, amountLeft: newAmount }));
+      }
+    }
+  };
+  
+  const renderCategoryItem = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.categoryChip,
+        selectedCategory === item.id && styles.categoryChipActive,
+      ]}
+      onPress={() => dispatch(setSelectedCategory(item.id))}
+    >
+      <Icon 
+        name={item.icon} 
+        size={18} 
+        color={selectedCategory === item.id ? '#FFF' : COLORS.textSecondary} 
+      />
+      <Text 
+        style={[
+          styles.categoryChipText,
+          selectedCategory === item.id && styles.categoryChipTextActive,
+        ]}
+      >
+        {item.name}
+      </Text>
+    </TouchableOpacity>
+  );
+  
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Items Left</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Text style={styles.addButtonText}>+</Text>
+        <View>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.userName}>{profile.name} 👋</Text>
+        </View>
+        <TouchableOpacity style={styles.notificationBtn}>
+          <Icon name="bell-outline" size={24} color={COLORS.text} />
+          {stats.expiringSoon > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>{stats.expiringSoon}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+      
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Icon name="magnify" size={22} color={COLORS.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search your fridge..."
+          placeholderTextColor={COLORS.textLight}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Icon name="close-circle" size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      
+      {/* Stats Cards */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.statsContainer}
+        contentContainerStyle={styles.statsContent}
       >
-        {fridgeItems.map((item) => (
-          <FridgeItemCard key={item.id} item={item} />
-        ))}
+        <View style={[styles.statCard, { backgroundColor: COLORS.primary + '15' }]}>
+          <Icon name="fridge-outline" size={28} color={COLORS.primary} />
+          <Text style={styles.statValue}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Total Items</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: COLORS.warning + '15' }]}>
+          <Icon name="clock-alert-outline" size={28} color={COLORS.warning} />
+          <Text style={styles.statValue}>{stats.expiringSoon}</Text>
+          <Text style={styles.statLabel}>Expiring Soon</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: COLORS.danger + '15' }]}>
+          <Icon name="alert-circle-outline" size={28} color={COLORS.danger} />
+          <Text style={styles.statValue}>{stats.lowStock}</Text>
+          <Text style={styles.statLabel}>Low Stock</Text>
+        </View>
       </ScrollView>
+      
+      {/* Expiring Soon Alert */}
+      {expiringItems.length > 0 && (
+        <View style={styles.alertContainer}>
+          <View style={styles.alertHeader}>
+            <Icon name="alert" size={20} color={COLORS.warning} />
+            <Text style={styles.alertTitle}>Use these soon!</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {expiringItems.slice(0, 5).map((item) => (
+              <FridgeItemCard 
+                key={item.id} 
+                item={item} 
+                compact 
+                onPress={() => {}}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      
+      {/* Categories */}
+      <FlatList
+        data={CATEGORIES}
+        renderItem={renderCategoryItem}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoriesContainer}
+        contentContainerStyle={styles.categoriesContent}
+      />
+      
+      {/* Items List Header */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          {selectedCategory === 'all' ? 'All Items' : CATEGORIES.find(c => c.id === selectedCategory)?.name}
+        </Text>
+        <Text style={styles.itemCount}>{filteredItems.length} items</Text>
+      </View>
+      
+      {/* Items List */}
+      <ScrollView 
+        style={styles.itemsList}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.itemsContent}
+      >
+        {filteredItems.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Icon name="fridge-outline" size={64} color={COLORS.textLight} />
+            <Text style={styles.emptyTitle}>No items found</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'Try a different search' : 'Add some items to your fridge!'}
+            </Text>
+          </View>
+        ) : (
+          filteredItems.map((item) => (
+            <FridgeItemCard
+              key={item.id}
+              item={item}
+              onPress={() => handleRemoveItem(item.id)}
+              onUpdateAmount={handleUpdateAmount}
+            />
+          ))
+        )}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+      
+      {/* FAB */}
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => setShowAddModal(true)}
+      >
+        <Icon name="plus" size={28} color="#FFF" />
+      </TouchableOpacity>
+      
+      {/* Add Item Modal */}
+      <AddItemModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddItem}
+      />
     </View>
   );
 };
-
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: COLORS.surface,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  greeting: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#6366F1',
+  userName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  notificationBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
   },
-  addButtonText: {
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontWeight: '300',
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: COLORS.danger,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  scrollView: {
-    flex: 1,
+  notificationBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
-  scrollContent: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-  },
-  cardHeader: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-  itemImage: {
-    width: 70,
-    height: 70,
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  statsContainer: {
+    maxHeight: 110,
+  },
+  statsContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  statCard: {
+    width: 110,
+    padding: 14,
     borderRadius: 16,
+    alignItems: 'center',
+    marginRight: 12,
   },
-  itemInfo: {
-    marginLeft: 16,
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  alertContainer: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: COLORS.warning + '10',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '30',
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  alertTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.warning,
+  },
+  categoriesContainer: {
+    maxHeight: 50,
+    marginTop: 16,
+  },
+  categoriesContent: {
+    paddingHorizontal: 20,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    gap: 6,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  categoryChipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  categoryChipTextActive: {
+    color: '#FFF',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  itemCount: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  itemsList: {
     flex: 1,
   },
-  itemName: {
-    fontSize: 20,
+  itemsContent: {
+    paddingHorizontal: 20,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: COLORS.text,
+    marginTop: 16,
   },
-  itemQuantity: {
+  emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
-  progressBarsContainer: {
-    gap: 16,
-  },
-  progressContainer: {
-    marginBottom: 8,
-  },
-  progressLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  progressBarWrapper: {
-    position: 'relative',
-    height: 8,
-    marginBottom: 4,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-  },
-  progressThumb: {
+  fab: {
     position: 'absolute',
-    top: -6,
-    left: -10,
-    width: 20,
-    height: 20,
+    bottom: 90,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  thumbCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    textAlign: 'right',
+    elevation: 6,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 });
 
