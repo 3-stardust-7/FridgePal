@@ -1,50 +1,45 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY } from '@env';
+
 
 // Stable, broadly available model
 const MODEL_NAME = 'gemini-2.5-flash';
+const ai = new GoogleGenAI({
+  apiKey: GEMINI_API_KEY,
+});
 
-// Get API key - try env first, then fallback
-const getApiKey = () => {
-  // First try the env variable
-  if (
-    GEMINI_API_KEY &&
-    GEMINI_API_KEY !== 'undefined' &&
-    GEMINI_API_KEY.length > 10
-  ) {
-    return GEMINI_API_KEY;
-  }
-  console.warn('GEMINI_API_KEY not loaded from environment');
-  return null;
-};
 
 const callGeminiWithRetry = async (prompt, maxRetries = 5) => {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error(
-      'Gemini API key not configured. Please add GEMINI_API_KEY to your .env file',
-    );
+  if (!GEMINI_API_KEY) {
+    throw new Error("Gemini API key not configured");
   }
 
-  const client = new GoogleGenerativeAI({ apiKey });
-  const model = client.getGenerativeModel({
-    model: MODEL_NAME,
-    generationConfig: {
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 4096,
-    },
-  });
-
   let lastError;
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const result = await model.generateContent(prompt);
-      const textContent = result?.response?.text();
+      const result = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.6,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+      });
+
+      const textContent = result?.candidates?.[0]?.content?.parts
+        ?.map(p => p.text)
+        .join("");
 
       if (!textContent) {
-        throw new Error('No content generated');
+        throw new Error("No content generated");
       }
 
       return textContent;
@@ -52,32 +47,29 @@ const callGeminiWithRetry = async (prompt, maxRetries = 5) => {
       const message = error?.message || String(error);
       lastError = error;
 
-      // Check if it's a rate/ quota / 429 style error
+      // Retry only for rate/quota issues
       if (
         attempt < maxRetries &&
-        (message.includes('quota') ||
-          message.includes('rate') ||
-          message.includes('429'))
+        (message.includes("429") ||
+          message.includes("quota") ||
+          message.includes("rate"))
       ) {
-        const waitTime = Math.pow(2, attempt) * 5000; // 10s, 20s, 40s, 80s, 160s
+        const waitTime = Math.pow(2, attempt) * 5000;
         console.log(
           `Rate limited. Waiting ${
             waitTime / 1000
           }s before retry ${attempt}/${maxRetries}...`,
         );
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise(res => setTimeout(res, waitTime));
         continue;
       }
 
-      // For 404 or model errors, bail out early
+      // API key issues → fail fast
       if (
-        message.includes('404') ||
-        message.includes('not found') ||
-        message.includes('model')
+        message.includes("API_KEY_INVALID") ||
+        message.includes("API key not valid")
       ) {
-        throw new Error(
-          `Model unavailable. Tried ${MODEL_NAME}. Error: ${message}`,
-        );
+        throw new Error("Invalid Gemini API key");
       }
 
       throw error;
@@ -153,35 +145,34 @@ export const geminiService = {
    */
   getRecipeVariations: async (dishName, availableIngredients) => {
     const prompt = `
-      I want to make "${dishName}" and I have these ingredients available:
-      ${availableIngredients.join(', ')}
-      
-      Please suggest 3 variations of this dish I can make with my available ingredients.
-      For each variation, provide a complete recipe.
-      
-      Return the response as a JSON array with this exact structure:
-      [
-        {
-          "name": "Variation Name",
-          "description": "Brief description",
-          "prepTime": 15,
-          "cookTime": 30,
-          "servings": 4,
-          "difficulty": "easy|medium|hard",
-          "calories": 350,
-          "protein": 25,
-          "carbs": 30,
-          "fat": 15,
-          "ingredients": ["ingredient 1 with amount", "ingredient 2 with amount"],
-          "instructions": ["Step 1", "Step 2"],
-          "tags": ["tag1", "tag2"],
-          "usesFromFridge": ["ingredient1", "ingredient2"],
-          "needToBuy": ["ingredient1"]
-        }
-      ]
-      
-      Only return the JSON array, no other text.
-    `;
+I want to make "${dishName}" using these ingredients:
+${availableIngredients.join(", ")}
+
+Suggest 1 simple variation of this dish that mostly uses my ingredients.
+
+Return ONLY a JSON array in this format:
+[
+  {
+    "name": "Variation name",
+    "description": "Short description",
+    "prepTime": 10,
+    "cookTime": 20,
+    "servings": 2,
+    "difficulty": "easy",
+    "ingredients": ["ingredient with amount"],
+    "instructions": ["Step 1", "Step 2"],
+    "tags": ["quick", "home-style"],
+    "usesFromFridge": ["ingredient"],
+    "needToBuy": ["ingredient"]
+  }
+]
+
+Rules:
+- Max 5 instruction steps
+- Short strings only
+- No extra text
+`;
+
 
     try {
       const textContent = await callGeminiWithRetry(prompt);
@@ -269,61 +260,37 @@ function buildRecipePrompt(ingredients, options) {
     constraints.push(`Difficulty level: ${difficulty}`);
   }
 
-  return `
-    You are a professional chef and nutritionist. I have these ingredients in my fridge:
-    ${ingredients.join(', ')}
-    
-    Please suggest ${numberOfRecipes} recipes I can make with these ingredients.
-    ${
-      constraints.length > 0
-        ? `\nAdditional requirements:\n${constraints.join('\n')}`
-        : ''
-    }
-    
-    For each recipe, provide:
-    - Creative and appetizing name
-    - Brief description (1-2 sentences)
-    - Prep time and cook time in minutes
-    - Number of servings
-    - Difficulty (easy, medium, or hard)
-    - Estimated nutrition per serving (calories, protein in g, carbs in g, fat in g)
-    - Complete ingredient list with amounts (mark which are from my fridge)
-    - Step-by-step instructions
-    - Relevant tags (breakfast, lunch, dinner, snack, quick, healthy, high-protein, low-carb, vegetarian, vegan, etc.)
-    - List of ingredients I need to buy (if any) vs what I already have
-    
-    IMPORTANT: Return the response as a valid JSON array with this exact structure:
-    [
-      {
-        "id": "ai_1",
-        "name": "Recipe Name",
-        "description": "Brief description of the dish",
-        "image": "https://source.unsplash.com/400x300/?food,recipe-name",
-        "prepTime": 15,
-        "cookTime": 30,
-        "servings": 4,
-        "difficulty": "easy",
-        "calories": 350,
-        "protein": 25,
-        "carbs": 30,
-        "fat": 15,
-        "ingredients": ["1 cup ingredient1", "2 tbsp ingredient2"],
-        "instructions": ["Step 1 description", "Step 2 description"],
-        "tags": ["dinner", "healthy", "quick"],
-        "usesFromFridge": ["ingredient1", "ingredient2"],
-        "needToBuy": ["ingredient3"],
-        "matchPercentage": 85,
-        "isAiGenerated": true
-      }
-    ]
-    
-    Make sure:
-    1. Recipes primarily use the ingredients I have
-    2. Recipes are practical and delicious
-    3. Nutrition information is realistic
-    4. matchPercentage reflects what % of ingredients I already have
-    5. Only return the JSON array, no additional text or markdown
-  `;
+ return `
+I have these ingredients:
+${ingredients.join(", ")}
+
+Suggest ${Math.min(numberOfRecipes, 2)} simple recipes using mostly these ingredients.
+${constraints.length ? constraints.join("\n") : ""}
+
+Return ONLY a JSON array in this format:
+[
+  {
+    "id": "ai_1",
+    "name": "Recipe name",
+    "description": "Short description",
+    "prepTime": 10,
+    "cookTime": 20,
+    "servings": 2,
+    "difficulty": "easy",
+    "ingredients": ["ingredient with amount"],
+    "instructions": ["Step 1", "Step 2"],
+    "tags": ["quick"],
+    "usesFromFridge": ["ingredient"],
+    "needToBuy": ["ingredient"]
+  }
+]
+
+Rules:
+- Max 5 instruction steps
+- Short strings only
+- No extra text
+`;
+
 }
 
 /**

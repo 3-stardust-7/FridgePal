@@ -25,11 +25,6 @@ const RecipeCard = ({
           <View style={styles.matchBadgeSmall}>
             <Text style={styles.matchTextSmall}>{recipe.matchPercentage}%</Text>
           </View>
-          {isAiGenerated && (
-            <View style={styles.aiBadgeSmall}>
-              <Icon name="auto-fix" size={10} color="#FFF" />
-            </View>
-          )}
         </View>
         <View style={styles.compactInfo}>
           <Text style={styles.compactName} numberOfLines={2}>
@@ -68,12 +63,6 @@ const RecipeCard = ({
                 {recipe.matchPercentage}% Match
               </Text>
             </View>
-            {isAiGenerated && (
-              <View style={styles.aiBadge}>
-                <Icon name="robot" size={14} color="#FFF" />
-                <Text style={styles.aiBadgeText}>AI</Text>
-              </View>
-            )}
           </View>
           <TouchableOpacity
             style={[styles.saveBtn, isSaved && styles.saveBtnActive]}
@@ -94,12 +83,6 @@ const RecipeCard = ({
       <View style={styles.content}>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{recipe.name}</Text>
-          {isAiGenerated && (
-            <View style={styles.aiGeneratedTag}>
-              <Icon name="sparkles" size={12} color={COLORS.accent} />
-              <Text style={styles.aiGeneratedText}>AI Generated</Text>
-            </View>
-          )}
         </View>
         <Text style={styles.description} numberOfLines={2}>
           {recipe.description}
