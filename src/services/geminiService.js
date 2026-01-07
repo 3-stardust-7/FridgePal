@@ -159,6 +159,10 @@ Return ONLY a JSON array in this format:
     "cookTime": 20,
     "servings": 2,
     "difficulty": "easy",
+    "calories": 450,
+    "protein": 25,
+    "carbs": 45,
+    "fat": 18,
     "ingredients": ["ingredient with amount"],
     "instructions": ["Step 1", "Step 2"],
     "tags": ["quick", "home-style"],
@@ -170,6 +174,7 @@ Return ONLY a JSON array in this format:
 Rules:
 - Max 5 instruction steps
 - Short strings only
+- Include accurate calorie and macro estimates
 - No extra text
 `;
 
@@ -277,6 +282,11 @@ Return ONLY a JSON array in this format:
     "cookTime": 20,
     "servings": 2,
     "difficulty": "easy",
+    "calories": 450,
+    "protein": 25,
+    "carbs": 45,
+    "fat": 18,
+    "fiber": 5,
     "ingredients": ["ingredient with amount"],
     "instructions": ["Step 1", "Step 2"],
     "tags": ["quick"],
@@ -288,6 +298,7 @@ Return ONLY a JSON array in this format:
 Rules:
 - Max 5 instruction steps
 - Short strings only
+- Include accurate calorie and macro estimates
 - No extra text
 `;
 
@@ -330,6 +341,7 @@ function parseRecipeResponse(textContent) {
       protein: parseInt(recipe.protein) || 0,
       carbs: parseInt(recipe.carbs) || 0,
       fat: parseInt(recipe.fat) || 0,
+      fiber: parseInt(recipe.fiber) || 0,
       ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
       instructions: Array.isArray(recipe.instructions)
         ? recipe.instructions

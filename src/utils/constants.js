@@ -81,3 +81,7 @@ export const DAILY_VALUES = {
   sodium: 2300,
   water: 2500, // ml
 };
+
+// Local AI Backend Configuration
+export const BACKEND_URL = 'http://10.169.34.52:8000';
+export const DETECT_ENDPOINT = `${BACKEND_URL}/detect`;

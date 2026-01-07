@@ -32,7 +32,7 @@ import {
   clearAiRecipes,
 } from '../../../store/slices/recipeSliceAsync';
 import { selectAllItems } from '../../../store/slices/fridgeSliceAsync';
-import { logMealFromRecipeAsync } from '../../../store/slices/nutritionSliceAsync';
+import { logMealFromRecipeAsync, fetchMealsGrouped, fetchDailyTotals } from '../../../store/slices/nutritionSliceAsync';
 
 const RECIPE_TAGS = [
   'breakfast',
@@ -72,6 +72,7 @@ const Recipe = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showAiSection, setShowAiSection] = useState(true);
   const [aiMealType, setAiMealType] = useState(null);
+  const [selectedMealType, setSelectedMealType] = useState('dinner');
 
   // Fetch data on mount
   useEffect(() => {
@@ -189,8 +190,24 @@ const Recipe = () => {
   };
 
   const handleLogMeal = (recipe, mealType) => {
-    dispatch(logMealFromRecipeAsync({ recipe, mealType, servings: 1 }));
-    setShowRecipeDetail(null);
+    const today = new Date().toISOString().split('T')[0];
+    console.log('Logging meal - Recipe:', recipe);
+    console.log('Recipe ID:', recipe.id);
+    console.log('Is AI Generated:', recipe.isAiGenerated);
+    
+    dispatch(logMealFromRecipeAsync({ recipe, mealType: selectedMealType || mealType, date: today }))
+      .then(() => {
+        console.log('Meal logged successfully');
+        // Refetch meals and totals to ensure UI updates
+        dispatch(fetchMealsGrouped(today));
+        dispatch(fetchDailyTotals(today));
+        setShowRecipeDetail(null);
+        Alert.alert('Success', `${recipe.name} logged as ${selectedMealType || mealType}`);
+      })
+      .catch((error) => {
+        console.error('Error logging meal:', error);
+        Alert.alert('Error', `Failed to log meal: ${error.message || 'Unknown error'}`);
+      });
   };
 
   const RecipeDetailModal = ({ recipe, visible, onClose }) => {
@@ -387,12 +404,33 @@ const Recipe = () => {
 
           {/* Bottom Action */}
           <View style={styles.bottomAction}>
+            <View style={styles.mealTypeSelector}>
+              {['breakfast', 'lunch', 'dinner', 'snack'].map(type => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.mealTypeBtn,
+                    selectedMealType === type && styles.mealTypeBtnActive,
+                  ]}
+                  onPress={() => setSelectedMealType(type)}
+                >
+                  <Text
+                    style={[
+                      styles.mealTypeBtnText,
+                      selectedMealType === type && styles.mealTypeBtnTextActive,
+                    ]}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <TouchableOpacity
               style={styles.logMealBtn}
               onPress={() => handleLogMeal(recipe, 'dinner')}
             >
               <Icon name="plus-circle-outline" size={22} color="#FFF" />
-              <Text style={styles.logMealText}>Log this meal</Text>
+              <Text style={styles.logMealText}>Log as {selectedMealType}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1098,6 +1136,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+  },
+  mealTypeSelector: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    gap: 8,
+  },
+  mealTypeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mealTypeBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  mealTypeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  mealTypeBtnTextActive: {
+    color: '#FFF',
   },
   logMealBtn: {
     flexDirection: 'row',

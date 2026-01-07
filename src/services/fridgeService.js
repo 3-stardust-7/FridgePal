@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { deleteItemImage, getPathFromUrl } from './storageService';
 
 /**
  * Fridge Items Service - CRUD operations for fridge inventory
@@ -103,6 +104,7 @@ export const fridgeService = {
         item.purchaseDate || new Date().toISOString().split('T')[0],
       expiry_date: item.expiryDate,
       image_url: item.imageUrl,
+      image_path: item.imagePath,
       notes: item.notes,
       calories: item.calories || 0,
       protein: item.protein || 0,
@@ -176,8 +178,26 @@ export const fridgeService = {
    * Delete fridge item
    */
   delete: async id => {
-    const { error } = await supabase.from('fridge_items').delete().eq('id', id);
+    // Fetch item to get image path/url
+    const { data: existing, error: fetchError } = await supabase
+      .from('fridge_items')
+      .select('image_url,image_path')
+      .eq('id', id)
+      .single();
 
+    if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+    // Delete image from storage if present
+    const imagePath = existing?.image_path || getPathFromUrl(existing?.image_url);
+    if (imagePath) {
+      try {
+        await deleteItemImage(imagePath);
+      } catch (e) {
+        console.warn('Failed to delete image from storage', e);
+      }
+    }
+
+    const { error } = await supabase.from('fridge_items').delete().eq('id', id);
     if (error) throw error;
     return true;
   },

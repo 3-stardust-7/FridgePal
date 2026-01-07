@@ -47,22 +47,24 @@ const RecipeCard = ({
         <Image source={{ uri: recipe.image }} style={styles.image} />
         <View style={styles.overlay}>
           <View style={styles.badgeRow}>
-            <View
-              style={[styles.matchBadge, isAiGenerated && styles.matchBadgeAi]}
-            >
-              {isAiGenerated && (
+            {!isAiGenerated && (
+              <View style={[styles.matchBadge, isAiGenerated && styles.matchBadgeAi]}>
+                <Icon name="check-circle" size={16} color="#FFF" />
+                <Text style={styles.matchText}>
+                  {recipe.matchPercentage}% Match
+                </Text>
+              </View>
+            )}
+            {isAiGenerated && (
+              <View style={styles.aiBadge}>
                 <Icon
                   name="auto-fix"
                   size={14}
                   color="#FFF"
-                  style={{ marginRight: 4 }}
                 />
-              )}
-              <Icon name="check-circle" size={16} color="#FFF" />
-              <Text style={styles.matchText}>
-                {recipe.matchPercentage}% Match
-              </Text>
-            </View>
+                <Text style={styles.aiBadgeText}>AI Generated</Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity
             style={[styles.saveBtn, isSaved && styles.saveBtnActive]}
@@ -119,10 +121,12 @@ const RecipeCard = ({
               {recipe.prepTime + recipe.cookTime} min
             </Text>
           </View>
-          <View style={styles.metaItem}>
-            <Icon name="fire" size={16} color={COLORS.accent} />
-            <Text style={styles.metaText}>{recipe.calories} cal</Text>
-          </View>
+          {recipe.calories > 0 && (
+            <View style={styles.metaItem}>
+              <Icon name="fire" size={16} color={COLORS.accent} />
+              <Text style={styles.metaText}>{recipe.calories} cal</Text>
+            </View>
+          )}
           <View style={styles.metaItem}>
             <Icon
               name="account-outline"
