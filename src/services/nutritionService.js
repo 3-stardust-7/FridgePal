@@ -75,7 +75,7 @@ export const nutritionService = {
       date,
       type: mealType,
       name: recipe.name,
-      recipeId: recipe.id,
+      recipeId: recipe.isAiGenerated ? null : recipe.id,
       calories: recipe.calories,
       protein: recipe.protein,
       carbs: recipe.carbs,

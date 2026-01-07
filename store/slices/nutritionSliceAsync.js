@@ -304,7 +304,11 @@ const nutritionSlice = createSlice({
       })
 
       // Log meal from recipe
+      .addCase(logMealFromRecipeAsync.pending, state => {
+        state.loading = true;
+      })
       .addCase(logMealFromRecipeAsync.fulfilled, (state, action) => {
+        state.loading = false;
         const m = action.payload;
         const meal = {
           id: m.id,
@@ -327,6 +331,10 @@ const nutritionSlice = createSlice({
         state.dailyTotals.carbs += meal.carbs || 0;
         state.dailyTotals.fat += meal.fat || 0;
         state.dailyTotals.fiber += meal.fiber || 0;
+      })
+      .addCase(logMealFromRecipeAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
 
       // Fetch water
