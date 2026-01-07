@@ -88,37 +88,42 @@ export const recipeService = {
     if (error) throw error;
 
     // Calculate match percentage for each recipe
-    const fridgeItemNames = fridgeItems.map(item => item.name.toLowerCase());
+    const fridgeItemNames = fridgeItems.map(item =>
+      item.name.toLowerCase()
+    );
 
     const recipesWithMatch = recipes.map(recipe => {
       const ingredients = recipe.ingredients || [];
-      const requiredIngredients = ingredients.filter(i => !i.optional);
-
       let matchCount = 0;
       const matchedIngredients = [];
       const missingIngredients = [];
 
-      requiredIngredients.forEach(ingredient => {
-        const ingredientName = ingredient.name.toLowerCase();
-        const isMatched = fridgeItemNames.some(
-          fridgeName =>
-            fridgeName.includes(ingredientName) ||
-            ingredientName.includes(fridgeName),
+      ingredients.forEach(ingredientText => {
+        const ingredientName = normalizeIngredient(ingredientText);
+
+        const isMatched = fridgeItemNames.some(fridgeName =>
+          fridgeName.includes(ingredientName) ||
+          ingredientName.includes(fridgeName)
         );
 
         if (isMatched) {
           matchCount++;
-          matchedIngredients.push(ingredient.name);
+          matchedIngredients.push(ingredientText);
         } else {
-          missingIngredients.push(ingredient.name);
+          missingIngredients.push(ingredientText);
         }
       });
 
-      const matchPercentage =
-        requiredIngredients.length > 0
-          ? Math.round((matchCount / requiredIngredients.length) * 100)
+      const matchPercentage = 20;
+      /*
+      const matchPercentage = 
+        ingredients.length > 0
+          ? Math.round((matchCount / ingredients.length) * 100)
           : 0;
-
+          
+      */
+    console.log(`match percentage is ${matchPercentage}`); // if u see this try making this console.log work first
+                                                                //Thaariq
       return {
         ...recipe,
         matchPercentage,
@@ -127,9 +132,9 @@ export const recipeService = {
       };
     });
 
-    // Sort by match percentage
+    // Sort by best match
     return recipesWithMatch.sort(
-      (a, b) => b.matchPercentage - a.matchPercentage,
+      (a, b) => b.matchPercentage - a.matchPercentage
     );
   },
 
