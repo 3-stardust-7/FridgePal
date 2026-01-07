@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Home from '../src/pages/MainTabs/Home';
+import Scanner from '../src/pages/MainTabs/Scanner';
 import Recipe from '../src/pages/MainTabs/Recipe';
 import CalTracker from '../src/pages/MainTabs/CalTracker';
 import Profile from '../src/pages/MainTabs/Profile';
@@ -18,6 +19,9 @@ const MainTab = () => {
           if (route.name === 'Fridge') {
             iconName = 'fridge-outline';
             iconNameFocused = 'fridge';
+          } else if (route.name === 'Scan') {
+            iconName = 'camera-outline';
+            iconNameFocused = 'camera';
           } else if (route.name === 'Recipes') {
             iconName = 'chef-hat';
             iconNameFocused = 'chef-hat';
@@ -66,6 +70,7 @@ const MainTab = () => {
         initialRouteName="Fridge"
       >
         <Tab.Screen name="Fridge" component={Home} />
+        <Tab.Screen name="Scan" component={Scanner} />
         <Tab.Screen name="Recipes" component={Recipe} />
         <Tab.Screen name="Nutrition" component={CalTracker} />
         <Tab.Screen name="Profile" component={Profile} />

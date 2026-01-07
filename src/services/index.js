@@ -5,3 +5,5 @@ export { recipeService } from './recipeService';
 export { nutritionService } from './nutritionService';
 export { profileService } from './profileService';
 export { geminiService } from './geminiService';
+export { default as detectionService } from './detectionService';
+export { detectFoodItems, checkBackendHealth, addToInventory, processDetectionResults } from './detectionService';
