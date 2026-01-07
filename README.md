@@ -4,6 +4,11 @@
 
 FridgePal combines computer vision, natural language processing, and mobile-first design to transform how you manage food and plan meals.
 
+## Demo 🎥
+
+Check out the demo of FridgePal in action:
+[Watch Demo](https://drive.google.com/file/d/1qBMPQ5CTlkyfSmLyUsg32lsF5cP2gTdo/view?usp=drivesdk)
+
 ## Features ✨
 
 ### 🎯 Core Features
